@@ -1,115 +1,49 @@
 Inception-Pix2Pix Image Dehazing
 
-This repository contains a conditional GAN (Pix2Pix) for single-image dehazing, using an Inception-enhanced U-Net generator and a PatchGAN discriminator. The model is trained on paired hazy/clear datasets and evaluated using SSIM and PSNR.
+This repository contains an implementation of an image-to-image translation model for single-image dehazing based on the Pix2Pix framework. The generator follows a U-Net architecture enhanced with Inception-style parallel convolution branches, while the discriminator is a PatchGAN that evaluates local image patches. This setup allows the model to learn effective haze removal while preserving structure and fine details.
+
+The approach is related to recent work on generative dehazing methods, such as the method presented here:
+IEEE Paper: https://ieeexplore.ieee.org/abstract/document/10899674
 
 Features
 
-Inception-U-Net generator
+• U-Net generator with Inception-style modules
+• PatchGAN discriminator
+• Paired hazy/clear dataset support
+• Adversarial and L1 reconstruction losses
+• SSIM and PSNR evaluation
+• Automatic sample output saving during training
 
-PatchGAN discriminator
+Dataset Format
 
-Paired hazy → clear training
+Your dataset should include paired hazy and clear images organized in the following way:
 
-SSIM & PSNR evaluation
+train/input – hazy images
+train/target – corresponding clear images
 
-tf.data pipeline
+Similarly for test sets such as test_thin, test_moderate, and test_thick.
+Each hazy image must have a corresponding clear image with the same filename.
 
-Sample results saved during training
+Model Overview
 
-Dataset Structure
-dataset/
-  train/
-    input/
-    target/
-  test_thin/
-    input/
-    target/
-  test_moderate/
-    input/
-    target/
-  test_thick/
-    input/
-    target/
-
-
-Each hazy image must have a matching clear image with the same filename.
-
-Model Architecture
-Generator (Inception U-Net)
-
-Encoder–decoder U-Net
-
-Parallel 1x1, 3x3, 5x5 convolutions
-
-Skip connections
-
-Final Conv2D producing RGB output
-
-Discriminator (PatchGAN)
-
-70x70 PatchGAN
-
-Input: concatenated (hazy, clear/generated)
-
-Output: real/fake patch map
+The generator downsamples the input image using convolutional layers, applies a bottleneck, and upsamples it back to full resolution while using skip connections to retain spatial details. Inception-style parallel convolutions increase the model’s representational power. The discriminator predicts real or fake labels on small overlapping patches, encouraging realistic local structure in the generated output.
 
 Training
-pix2pix_gan.fit(
-    train_ds,
-    epochs=25,
-    batch_size=BATCH_SIZE,
-    callbacks=callbacks
-)
 
-Losses
-
-Generator Loss = GAN Loss + 100 * L1 Loss
-Discriminator Loss = BCE(real) + BCE(fake)
-
-Optimizer
-Adam(lr=2e-4, beta1=0.5)
+The model is trained on paired hazy and clear images using adversarial loss (GAN loss) together with an L1 reconstruction loss that encourages structural fidelity. Training logs and generated sample images are saved periodically.
 
 Evaluation
 
-Metrics used:
+The model’s dehazing performance is evaluated using SSIM and PSNR.
+Example performance:
 
-SSIM
+• Moderate haze: SSIM ≈ 0.88, PSNR ≈ 19 dB
+• Thick haze: SSIM ≈ 0.78, PSNR ≈ 14 dB
 
-PSNR
-
-Example Results
-Dataset	SSIM	PSNR (dB)
-Moderate	0.88	19.31
-Thick	0.78	14.40
-Thin	Best performance	
 Inference
-loaded_generator = tf.keras.models.load_model("generator_model")
-pred = loaded_generator(test_image)
 
-Preprocess
-img = (img / 127.5) - 1.0
+Once trained, the generator takes a single hazy image as input and outputs its dehazed version. Input images are normalized into the range [-1, 1], and model outputs are converted back to the original image range.
 
-Postprocess
-img = (img + 1) / 2.0
+Saved Model
 
-Saving the Model
-generator.save("generator_model")
-
-Project Structure
-├── README.md
-├── generator_model/
-├── training_res.csv
-├── results/
-└── dehaze.ipynb
-
-Future Improvements
-
-Add attention mechanisms
-
-Add perceptual loss (VGG)
-
-Multi-scale discriminator
-
-Train with unpaired data (CycleGAN)
-
-Higher-resolution training
+The trained generator is saved in the folder named “generator_model”, and can be reloaded to run inference on new images.
