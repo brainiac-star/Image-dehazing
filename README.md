@@ -1,30 +1,26 @@
 Inception-Pix2Pix Image Dehazing
 
-This repository contains a conditional GAN (Pix2Pix) model for single-image dehazing, using
-an Inception-enhanced U-Net generator and a PatchGAN discriminator.
-The model is trained on paired hazy/clear datasets and evaluated using SSIM and PSNR.
+This repository contains a conditional GAN (Pix2Pix) for single-image dehazing, using an Inception-enhanced U-Net generator and a PatchGAN discriminator. The model is trained on paired hazy/clear datasets and evaluated using SSIM and PSNR.
 
-📌 Features
+Features
 
 Inception-U-Net generator
 
 PatchGAN discriminator
 
-Paired training on haze datasets
+Paired hazy → clear training
 
-SSIM + PSNR evaluation
+SSIM & PSNR evaluation
 
 tf.data pipeline
 
-Saves sample results every few epochs
+Sample results saved during training
 
-Fully reproducible training pipeline
-
-📁 Dataset Structure
+Dataset Structure
 dataset/
   train/
-    input/      # hazy images
-    target/     # clear images
+    input/
+    target/
   test_thin/
     input/
     target/
@@ -38,26 +34,26 @@ dataset/
 
 Each hazy image must have a matching clear image with the same filename.
 
-🧠 Model Architecture
+Model Architecture
 Generator (Inception U-Net)
 
 Encoder–decoder U-Net
 
-Inception-style multi-scale feature blocks
+Parallel 1x1, 3x3, 5x5 convolutions
 
 Skip connections
 
-Final Conv2D → outputs clean image
+Final Conv2D producing RGB output
 
 Discriminator (PatchGAN)
 
-Operates on 70×70 patches
+70x70 PatchGAN
 
-Takes (hazy, clean/generated) concatenated pair
+Input: concatenated (hazy, clear/generated)
 
-Outputs patch-level real/fake map
+Output: real/fake patch map
 
-⚙️ Training
+Training
 pix2pix_gan.fit(
     train_ds,
     epochs=25,
@@ -67,14 +63,13 @@ pix2pix_gan.fit(
 
 Losses
 
-Generator Loss = GAN Loss + 100 × L1 Loss
-
-Discriminator: BCE(real) + BCE(fake)
+Generator Loss = GAN Loss + 100 * L1 Loss
+Discriminator Loss = BCE(real) + BCE(fake)
 
 Optimizer
 Adam(lr=2e-4, beta1=0.5)
 
-📊 Evaluation
+Evaluation
 
 Metrics used:
 
@@ -82,44 +77,39 @@ SSIM
 
 PSNR
 
-Example results:
-
+Example Results
 Dataset	SSIM	PSNR (dB)
-Moderate	~0.88	~19.31
-Thick	~0.78	~14.40
-Thin	Higher performance	
-▶️ Inference
+Moderate	0.88	19.31
+Thick	0.78	14.40
+Thin	Best performance	
+Inference
 loaded_generator = tf.keras.models.load_model("generator_model")
 pred = loaded_generator(test_image)
 
-
-Preprocess:
-
+Preprocess
 img = (img / 127.5) - 1.0
 
-
-Postprocess:
-
+Postprocess
 img = (img + 1) / 2.0
 
-💾 Saving
+Saving the Model
 generator.save("generator_model")
 
-📂 Project Structure
+Project Structure
 ├── README.md
 ├── generator_model/
 ├── training_res.csv
 ├── results/
 └── dehaze.ipynb
 
-🔮 Future Improvements
+Future Improvements
 
-Add attention blocks
+Add attention mechanisms
 
-Use perceptual/VGG loss
-
-Train with unpaired data (CycleGAN)
+Add perceptual loss (VGG)
 
 Multi-scale discriminator
+
+Train with unpaired data (CycleGAN)
 
 Higher-resolution training
