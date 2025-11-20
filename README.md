@@ -1,195 +1,125 @@
-Inception-Pix2Pix for Single Image Dehazing
+Inception-Pix2Pix Image Dehazing
 
-A GAN-based Approach Using an Inception-Enhanced U-Net Generator
+This repository contains a conditional GAN (Pix2Pix) model for single-image dehazing, using
+an Inception-enhanced U-Net generator and a PatchGAN discriminator.
+The model is trained on paired hazy/clear datasets and evaluated using SSIM and PSNR.
 
-This repository contains an end-to-end implementation of a conditional GAN (Pix2Pix) for single-image dehazing. The model uses a U-Net generator enhanced with Inception-style parallel convolution blocks and a PatchGAN discriminator. The system is trained on paired hazy/clear image datasets and evaluated using SSIM and PSNR.
+📌 Features
 
-1. Overview
+Inception-U-Net generator
 
-Image dehazing is an important task in outdoor vision systems, autonomous navigation, and remote sensing. Haze reduces contrast, visibility, and feature clarity. Traditional methods often struggle to generalize across varying haze densities.
+PatchGAN discriminator
 
-This project adopts a GAN-based approach, where:
+Paired training on haze datasets
 
-The Generator learns a mapping from hazy images to clear images.
+SSIM + PSNR evaluation
 
-The Discriminator evaluates whether the generated clear image is realistic.
+tf.data pipeline
 
-A supervised paired dataset guides the model toward accurate restoration.
+Saves sample results every few epochs
 
-2. Architecture
-2.1 Generator – Inception U-Net
+Fully reproducible training pipeline
 
-The generator is a U-Net encoder–decoder with the following characteristics:
-
-Multi-scale feature extraction using Inception-style blocks (1x1, 3x3, 5x5 convs + pooling).
-
-Skip connections to preserve spatial information.
-
-Upsampling in the decoder path.
-
-Final output layer produces 3-channel RGB images.
-
-Advantages:
-
-Robust multi-scale haze removal.
-
-Strong structure preservation.
-
-High detail recovery.
-
-2.2 Discriminator – PatchGAN
-
-The discriminator is a 70x70 PatchGAN, which classifies local image patches instead of the entire image.
-
-Advantages:
-
-Enforces high-frequency realism.
-
-More stable GAN training.
-
-Fewer parameters than full-image discriminator.
-
-3. Dataset Structure
-
-Organize your dataset as follows:
-
+📁 Dataset Structure
 dataset/
-    train/
-        input/       # hazy images
-        target/      # corresponding clear images
-    test_thin/
-        input/
-        target/
-    test_moderate/
-        input/
-        target/
-    test_thick/
-        input/
-        target/
+  train/
+    input/      # hazy images
+    target/     # clear images
+  test_thin/
+    input/
+    target/
+  test_moderate/
+    input/
+    target/
+  test_thick/
+    input/
+    target/
 
 
-Each hazy image must have a matching ground truth clear image with the same filename.
+Each hazy image must have a matching clear image with the same filename.
 
-Images are resized to 256x256 and normalized to [-1, 1].
+🧠 Model Architecture
+Generator (Inception U-Net)
 
-4. Training Pipeline
-4.1 Loss Functions
+Encoder–decoder U-Net
 
-Generator Loss:
+Inception-style multi-scale feature blocks
 
-GAN Loss (Binary Cross Entropy)
+Skip connections
 
-L1 Loss (pixel-level reconstruction)
+Final Conv2D → outputs clean image
 
-Weighted combination:
+Discriminator (PatchGAN)
 
-L_G = L_GAN + 100 * L1
+Operates on 70×70 patches
 
+Takes (hazy, clean/generated) concatenated pair
 
-Discriminator Loss:
+Outputs patch-level real/fake map
 
-BCE(real → 1)
+⚙️ Training
+pix2pix_gan.fit(
+    train_ds,
+    epochs=25,
+    batch_size=BATCH_SIZE,
+    callbacks=callbacks
+)
 
-BCE(fake → 0)
+Losses
 
-4.2 Optimizer
+Generator Loss = GAN Loss + 100 × L1 Loss
 
-Both networks use:
+Discriminator: BCE(real) + BCE(fake)
 
+Optimizer
 Adam(lr=2e-4, beta1=0.5)
 
+📊 Evaluation
 
-This is the standard stable configuration for GAN training.
+Metrics used:
 
-4.3 Training Loop Description
+SSIM
 
-For each training batch:
+PSNR
 
-Load hazy and clear image pair.
+Example results:
 
-Generator produces predicted clear image.
-
-Discriminator evaluates (hazy, clear) as real and (hazy, generated) as fake.
-
-Compute generator and discriminator losses.
-
-Backpropagate using two gradient tapes.
-
-Save logs and example outputs every few epochs.
-
-The model is trained for 25 epochs.
-
-5. Evaluation Metrics
-
-Two quantitative metrics are used:
-
-SSIM (Structural Similarity Index)
-
-Measures perceptual similarity.
-
-PSNR (Peak Signal-to-Noise Ratio)
-
-Measures reconstruction quality in decibels.
-
-Example Results
 Dataset	SSIM	PSNR (dB)
 Moderate	~0.88	~19.31
 Thick	~0.78	~14.40
-Thin	Highest performance among all	
-
-These values show strong results on moderate haze and reasonable performance under denser haze.
-
-6. Inference
-
-Load a trained generator and run prediction:
-
+Thin	Higher performance	
+▶️ Inference
 loaded_generator = tf.keras.models.load_model("generator_model")
 pred = loaded_generator(test_image)
 
-Preprocessing:
+
+Preprocess:
+
 img = (img / 127.5) - 1.0
 
-Postprocessing:
+
+Postprocess:
+
 img = (img + 1) / 2.0
 
-7. Saving Models
-
-To save the generator:
-
+💾 Saving
 generator.save("generator_model")
 
-
-This saves the architecture, weights, and optimizer state.
-
-8. Project Structure
+📂 Project Structure
 ├── README.md
-├── generator_model/          # saved TF model
-├── training_res.csv          # training logs
-├── results/                  # generated samples
-└── dehaze.ipynb              # main notebook / script
+├── generator_model/
+├── training_res.csv
+├── results/
+└── dehaze.ipynb
 
-9. Key Contributions
+🔮 Future Improvements
 
-Implemented a Pix2Pix-style conditional GAN specifically for dehazing.
+Add attention blocks
 
-Created a custom U-Net generator enhanced with Inception blocks.
+Use perceptual/VGG loss
 
-Trained on multiple haze levels and achieved strong SSIM/PSNR results.
+Train with unpaired data (CycleGAN)
 
-Added complete evaluation pipeline and visualization system.
+Multi-scale discriminator
 
-Provided reproducible training and inference workflow.
-
-10. Future Work
-
-Planned extensions include:
-
-Attention mechanisms (CBAM, Self-Attention)
-
-Perceptual Loss (VGG-based)
-
-Multi-scale discriminators
-
-Unpaired training using CycleGAN
-
-Higher-resolution dehazing (512x512+)
+Higher-resolution training
