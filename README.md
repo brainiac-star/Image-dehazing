@@ -1,70 +1,62 @@
-# Image-dehazing
-using pix2pix gan with inception module
 Inception-Pix2Pix for Single Image Dehazing
 
 A GAN-based Approach Using an Inception-Enhanced U-Net Generator
 
-This repository implements a conditional GAN (cGAN) for single-image dehazing, inspired by the Pix2Pix framework and enhanced with Inception-style feature extraction blocks. The goal is to learn a mapping from hazy images to their corresponding clear images using paired training data.
+This repository contains an end-to-end implementation of a conditional GAN (Pix2Pix) for single-image dehazing. The model uses a U-Net generator enhanced with Inception-style parallel convolution blocks and a PatchGAN discriminator. The system is trained on paired hazy/clear image datasets and evaluated using SSIM and PSNR.
 
-The model is trained and evaluated on different haze levels (Thin, Moderate, Thick), and the pipeline includes preprocessing, training, inference, and quantitative evaluation using SSIM and PSNR.
+1. Overview
 
-📚 Overview
+Image dehazing is an important task in outdoor vision systems, autonomous navigation, and remote sensing. Haze reduces contrast, visibility, and feature clarity. Traditional methods often struggle to generalize across varying haze densities.
 
-Image dehazing is a challenging low-level vision task due to the complexity of atmospheric scattering. This project uses a GAN-based supervised learning approach, where:
+This project adopts a GAN-based approach, where:
 
-The Generator learns to translate hazy images into clean counterparts.
+The Generator learns a mapping from hazy images to clear images.
 
-The Discriminator ensures generated images appear realistic and structurally consistent.
+The Discriminator evaluates whether the generated clear image is realistic.
 
-An L1 reconstruction loss stabilizes the training and encourages fidelity to the ground truth.
+A supervised paired dataset guides the model toward accurate restoration.
 
-This model is particularly effective for remote sensing, autonomous drones, outdoor perception, and degraded-scene restoration.
+2. Architecture
+2.1 Generator – Inception U-Net
 
-1. Architecture
-1.1 Generator – Inception U-Net
+The generator is a U-Net encoder–decoder with the following characteristics:
 
-The generator follows a U-Net encoder–decoder structure but enhances feature extraction using Inception-style parallel convolutions.
+Multi-scale feature extraction using Inception-style blocks (1x1, 3x3, 5x5 convs + pooling).
 
-Key elements:
+Skip connections to preserve spatial information.
 
-Multi-scale feature extraction (1×1, 3×3, 5×5 convs, + pooling)
+Upsampling in the decoder path.
 
-Skip connections for fine detail preservation
-
-Upsampling in the decoder for reconstruction
-
-Final 3-channel output (linear activation)
-
-This design enables:
-
-Better modeling of haze structures at multiple scales
-
-Improved learning stability
-
-Stronger high-frequency detail recovery
-
-1.2 Discriminator – PatchGAN
-
-A 70×70 PatchGAN is used to classify if local patches are real or fake.
+Final output layer produces 3-channel RGB images.
 
 Advantages:
 
-Encourages local realism
+Robust multi-scale haze removal.
 
-Reduces number of parameters
+Strong structure preservation.
 
-Stabilizes adversarial training
+High detail recovery.
 
-Better suited for dehazing than a global discriminator
+2.2 Discriminator – PatchGAN
 
-2. Dataset Format
+The discriminator is a 70x70 PatchGAN, which classifies local image patches instead of the entire image.
 
-Place data in the following directory structure:
+Advantages:
+
+Enforces high-frequency realism.
+
+More stable GAN training.
+
+Fewer parameters than full-image discriminator.
+
+3. Dataset Structure
+
+Organize your dataset as follows:
 
 dataset/
     train/
-        input/        # hazy images
-        target/       # corresponding clear images
+        input/       # hazy images
+        target/      # corresponding clear images
     test_thin/
         input/
         target/
@@ -76,137 +68,128 @@ dataset/
         target/
 
 
-Each hazy image must have a one-to-one paired ground truth image.
+Each hazy image must have a matching ground truth clear image with the same filename.
 
-Images are automatically:
+Images are resized to 256x256 and normalized to [-1, 1].
 
-Loaded
+4. Training Pipeline
+4.1 Loss Functions
 
-Decoded
+Generator Loss:
 
-Resized to 256×256
+GAN Loss (Binary Cross Entropy)
 
-Normalized to [-1, 1]
+L1 Loss (pixel-level reconstruction)
 
-3. Training Pipeline
-3.1 Loss Functions
-Generator Loss
-L_G = L_GAN + λ * L1
-λ = 100
+Weighted combination:
+
+L_G = L_GAN + 100 * L1
 
 
-Where:
+Discriminator Loss:
 
-L_GAN = BCE loss with labels = 1
+BCE(real → 1)
 
-L1 loss encourages pixel-level accuracy and structural correctness
+BCE(fake → 0)
 
-Discriminator Loss
-L_D = BCE(real → 1) + BCE(fake → 0)
-
-3.2 Optimizer
+4.2 Optimizer
 
 Both networks use:
 
-Adam(learning_rate = 2e-4, beta1 = 0.5)
+Adam(lr=2e-4, beta1=0.5)
 
 
-This configuration is standard for stable GAN training.
+This is the standard stable configuration for GAN training.
 
-3.3 Training Loop
+4.3 Training Loop Description
 
-The model is trained for 25 epochs using custom Keras train_step logic:
+For each training batch:
 
-Fetch batch of (hazy, clear)
+Load hazy and clear image pair.
 
-Generator produces predicted output
+Generator produces predicted clear image.
 
-Discriminator evaluates both real and generated pairs
+Discriminator evaluates (hazy, clear) as real and (hazy, generated) as fake.
 
-Compute individual losses
+Compute generator and discriminator losses.
 
-Backpropagate via separate gradient tapes
+Backpropagate using two gradient tapes.
 
-Save training logs and sample outputs
+Save logs and example outputs every few epochs.
 
-A callback generates dehazed outputs every 5 epochs for qualitative comparison.
+The model is trained for 25 epochs.
 
-4. Evaluation Metrics
-4.1 SSIM (Structural Similarity Index)
+5. Evaluation Metrics
 
-Measures perceptual similarity between predicted and target images.
+Two quantitative metrics are used:
 
-4.2 PSNR (Peak Signal-to-Noise Ratio)
+SSIM (Structural Similarity Index)
 
-Measures reconstruction fidelity.
+Measures perceptual similarity.
 
-Both metrics are computed per image and averaged per dataset (Thin, Moderate, Thick).
+PSNR (Peak Signal-to-Noise Ratio)
 
-Sample Final Results
+Measures reconstruction quality in decibels.
+
+Example Results
 Dataset	SSIM	PSNR (dB)
 Moderate	~0.88	~19.31
 Thick	~0.78	~14.40
-Thin	Higher, stable performance	
+Thin	Highest performance among all	
 
-These results demonstrate strong performance in moderate haze and reasonable generalization in thick haze.
+These values show strong results on moderate haze and reasonable performance under denser haze.
 
-5. Inference
+6. Inference
 
-Use a previously saved generator:
+Load a trained generator and run prediction:
 
 loaded_generator = tf.keras.models.load_model("generator_model")
 pred = loaded_generator(test_image)
 
-Preprocessing
+Preprocessing:
 img = (img / 127.5) - 1.0
 
-Postprocessing
+Postprocessing:
 img = (img + 1) / 2.0
 
+7. Saving Models
 
-Save or display prediction using matplotlib or cv2.
+To save the generator:
 
-6. Saving Models
 generator.save("generator_model")
 
 
-This stores:
+This saves the architecture, weights, and optimizer state.
 
-Architecture
-
-Weights
-
-Optimizer state
-
-7. Project Structure
+8. Project Structure
 ├── README.md
-├── generator_model/         # saved TensorFlow model
-├── training_res.csv         # training log
-├── results/                 # generated sample outputs
-└── dehaze.ipynb             # main codebase / notebook
+├── generator_model/          # saved TF model
+├── training_res.csv          # training logs
+├── results/                  # generated samples
+└── dehaze.ipynb              # main notebook / script
 
-8. Key Contributions
+9. Key Contributions
 
-Implemented a Pix2Pix-based cGAN specifically adapted for image dehazing
+Implemented a Pix2Pix-style conditional GAN specifically for dehazing.
 
-Designed a custom Inception-U-Net generator for superior multi-scale feature extraction
+Created a custom U-Net generator enhanced with Inception blocks.
 
-Achieved high-quality dehazing on multiple haze levels
+Trained on multiple haze levels and achieved strong SSIM/PSNR results.
 
-Added comprehensive evaluation (SSIM, PSNR)
+Added complete evaluation pipeline and visualization system.
 
-Provided reproducible pipeline with visualization and model export
+Provided reproducible training and inference workflow.
 
-9. Future Work
+10. Future Work
 
-Potential improvements include:
+Planned extensions include:
 
-Adding self-attention (e.g., SAGAN, CBAM)
+Attention mechanisms (CBAM, Self-Attention)
 
-Using Perceptual Loss (VGG-based)
-
-Training with unpaired datasets using CycleGAN
+Perceptual Loss (VGG-based)
 
 Multi-scale discriminators
 
-Higher-resolution training (512×512 or 1024×1024)
+Unpaired training using CycleGAN
+
+Higher-resolution dehazing (512x512+)
